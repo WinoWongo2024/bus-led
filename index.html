@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus LED Board</title>
+    <title>First Bus X39 Matrix Board</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     <script>
@@ -12,9 +12,11 @@
                 extend: {
                     colors: {
                         led: {
-                            bg: '#0a0a0a',
-                            text: '#f9e000', // classic bus LED yellow
-                            dim: '#b8a500'
+                            bg: '#030303',
+                            amber: '#ff9000',
+                            red: '#ff2a00',
+                            dim: '#2b1a00',
+                            panel: '#15151c'
                         }
                     },
                     fontFamily: {
@@ -26,256 +28,347 @@
     </script>
     <style type="text/tailwindcss">
         @layer utilities {
-            .scroll-text {
-                animation: scroll 12s linear infinite;
+            .led-glow-amber {
+                text-shadow: 0 0 8px rgba(255, 144, 0, 0.85), 0 0 15px rgba(255, 144, 0, 0.4);
             }
-            @keyframes scroll {
+            .led-glow-red {
+                text-shadow: 0 0 8px rgba(255, 42, 0, 0.85), 0 0 15px rgba(255, 42, 0, 0.4);
+            }
+            .led-dots {
+                background-image: radial-gradient(rgba(43, 26, 0, 0.5) 1.5px, transparent 1.5px);
+                background-size: 4px 4px;
+            }
+            .marquee-container {
+                display: flex;
+                overflow: hidden;
+                width: 100%;
+                position: relative;
+            }
+            .marquee-content {
+                white-space: nowrap;
+                display: inline-block;
+                animation: marquee 12s linear infinite;
+            }
+            @keyframes marquee {
                 0% { transform: translateX(100%); }
                 100% { transform: translateX(-100%); }
-            }
-            .led-glow {
-                text-shadow: 0 0 8px currentColor;
             }
         }
     </style>
 </head>
-<body class="bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4 font-matrix">
-    <!-- LED MATRIX BOARD -->
-    <div class="w-full max-w-[420px] bg-led-bg text-led-text rounded-2xl p-6 shadow-[0_0_30px_rgba(249,224,0,0.2)] border-2 border-yellow-600/30">
+<body class="bg-slate-950 min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 font-matrix select-none">
+
+    <!-- MAIN BUS ENCLOSURE -->
+    <div class="w-full max-w-3xl bg-led-panel p-5 rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] border-4 border-slate-800 relative">
+        <div class="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none rounded-t-xl"></div>
         
-        <!-- Header -->
-        <div class="text-center mb-4 border-b border-yellow-800/40 pb-2">
-            <h1 class="text-[10px] sm:text-xs uppercase tracking-widest text-led-dim">Live Bus Board</h1>
+        <!-- BUS CASING HEADER -->
+        <div class="flex justify-between items-center px-2 mb-3 text-slate-500 font-sans text-xs tracking-widest uppercase">
+            <span>First West of England • Aquae Link</span>
+            <span id="clock" class="font-mono text-slate-400 font-bold">--:--:--</span>
         </div>
 
-        <!-- MAIN DISPLAY -->
-        <div id="mainDisplay" class="text-[clamp(1.8rem,8vw,3.2rem)] leading-tight font-bold led-glow overflow-hidden whitespace-nowrap h-[4rem] flex items-center mb-4">
-            <span id="displayText">WAITING FOR LOCATION...</span>
-        </div>
-
-        <!-- SERVICE NUMBERS -->
-        <div id="servicesDisplay" class="text-[clamp(1.4rem,6vw,2.4rem)] font-semibold led-glow mb-3">
-            SERVICES: --
-        </div>
-
-        <!-- NEXT STOP + PREDICTION -->
-        <div class="grid grid-cols-2 gap-3 text-led-dim">
-            <div>
-                <div class="text-[10px] uppercase">Next Stop</div>
-                <div id="nextStop" class="text-led-text text-lg">---</div>
+        <!-- THE PHYSICAL LED SCREEN -->
+        <div class="w-full bg-led-bg rounded-lg border-4 border-black p-3 flex h-28 relative overflow-hidden led-dots items-center">
+            
+            <!-- ROUTE INDICATOR BOX -->
+            <div class="w-1/4 h-full flex flex-col justify-center items-center border-r-4 border-neutral-900/80 pr-2 z-10 bg-led-bg">
+                <div class="text-[10px] text-led-dim font-sans tracking-tight font-bold -mb-1">ROUTE</div>
+                <div id="routeDisplay" class="text-4xl sm:text-5xl font-black text-led-amber led-glow-amber">X39</div>
             </div>
-            <div class="text-right">
-                <div class="text-[10px] uppercase">ETA / Direction</div>
-                <div id="prediction" class="text-led-text text-lg">---</div>
-            </div>
-        </div>
 
-        <!-- STATUS BAR -->
-        <div id="status" class="mt-4 text-[9px] text-led-dim uppercase tracking-wider">
-            📍 Location: Waiting for permission...
+            <!-- SCROLLING BANNER / ALERTS -->
+            <div class="w-3/4 h-full pl-4 flex flex-col justify-center relative overflow-hidden">
+                <!-- Flashing Bell Notice layer -->
+                <div id="bellBanner" class="absolute inset-0 bg-led-bg flex items-center justify-center hidden z-20">
+                    <span class="text-3xl sm:text-4xl font-extrabold text-led-red led-glow-red animate-pulse">🛑 BUS STOPPING</span>
+                </div>
+                
+                <!-- Normal Destination Text system -->
+                <div class="text-[10px] text-led-amber/40 tracking-wider font-sans" id="displayMeta">GPS STATUS</div>
+                <div class="marquee-container h-12 flex items-center">
+                    <div id="textMarquee" class="marquee-content text-3xl sm:text-4xl font-bold text-led-amber led-glow-amber">
+                        INITIALISING TELEMETRY...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- LIVE TELEMETRY MATRIX & BELL PRESS -->
+    <div class="w-full max-w-3xl mt-5 bg-slate-900 rounded-xl p-4 border border-slate-800 text-slate-300 font-sans text-xs sm:text-sm">
+        
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4 mb-4">
+            <div class="text-white font-bold uppercase tracking-wider text-xs flex items-center gap-1.5">
+                <span id="teleStatusDot" class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span> 
+                <span id="teleStatusText">GPS Syncing...</span>
+            </div>
+            
+            <button id="bellBtn" class="bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-4 py-2 rounded-full shadow-lg transition-all flex items-center gap-2 tracking-wider text-xs uppercase">
+                <span class="text-base">🔔</span> Press Passenger Bell
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800/60">
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider">Final Destination</div>
+                <div id="teleDest" class="font-bold text-white mt-0.5 truncate">Bath Bus Station</div>
+            </div>
+            <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800/60">
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider">Next Looming Stop</div>
+                <div id="teleNext" class="font-bold text-amber-400 mt-0.5 truncate">Awaiting Position...</div>
+            </div>
+            <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800/60">
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider">Distance to Nearest Stop</div>
+                <div id="teleDist" class="font-bold text-white mt-0.5 font-mono">---</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACKEND GPS ENGINE -->
     <script>
-        // ==============================================
-        // ✏️ ROUTE & STOP DATA - EXPANDED KE YNSHAM → SALTFORD
-        // ==============================================
-        const ROUTES = [
-            {
-                name: "Keynsham → Saltford",
-                services: ["47", "63", "92", "183"],
-                stops: [
-                    // === KEYNSHAM STOPS (NORTH TO SOUTH) ===
-                    { id: 1, name: "Keynsham, The Centre", lat: 51.4178, lng: -2.4942 },
-                    { id: 2, name: "Keynsham, High Street", lat: 51.4172, lng: -2.4930 },
-                    { id: 3, name: "Keynsham, Memorial Park", lat: 51.4165, lng: -2.4918 },
-                    { id: 4, name: "Keynsham, Ashton Way", lat: 51.4158, lng: -2.4905 },
-                    { id: 5, name: "Keynsham, St John's School", lat: 51.4150, lng: -2.4892 },
-                    { id: 6, name: "Keynsham, Hospital Main Entrance", lat: 51.4135, lng: -2.4871 },
-                    { id: 7, name: "Keynsham, Hospital South Gate", lat: 51.4122, lng: -2.4858 },
-                    { id: 8, name: "Keynsham, Queens Road", lat: 51.4110, lng: -2.4842 },
-                    { id: 9, name: "Keynsham, Durley Park", lat: 51.4095, lng: -2.4825 },
-                    { id: 10, name: "Keynsham, Manor Road", lat: 51.4082, lng: -2.4808 },
-                    { id: 11, name: "Keynsham, Bath Road Roundabout", lat: 51.4070, lng: -2.4790 },
-                    { id: 12, name: "Keynsham, Somerdale Gate", lat: 51.4055, lng: -2.4765 },
-                    { id: 13, name: "Keynsham, Somerdale Square", lat: 51.4042, lng: -2.4740 },
-                    { id: 14, name: "Keynsham, River Bridge", lat: 51.4032, lng: -2.4705 },
-                    { id: 15, name: "Keynsham, Avon Riverside", lat: 51.4025, lng: -2.4678 },
+        const MAIN_ROUTE = {
+            service: "X39",
+            finalDestination: "BATH BUS STATION",
+            stops: [
+                // === BRISTOL ZONE ===
+                { id: 1, name: "Bristol Bus Station (Bay 12)", lat: 51.4584, lng: -2.5931 },
+                { id: 2, name: "Temple Meads Station (Stop T1)", lat: 51.4496, lng: -2.5812 },
+                { id: 3, name: "Totterdown, Three Lamps", lat: 51.4428, lng: -2.5715 },
+                { id: 4, name: "Arnos Vale Cemetery", lat: 51.4398, lng: -2.5601 },
+                { id: 5, name: "Brislington, Kensington Park", lat: 51.4362, lng: -2.5532 },
+                { id: 6, name: "Brislington, Square", lat: 51.4312, lng: -2.5410 },
+                { id: 7, name: "Brislington, Park & Ride Gate", lat: 51.4271, lng: -2.5290 },
+                { id: 8, name: "Hicks Gate Roundabout", lat: 51.4215, lng: -2.5110 },
+                
+                // === KEYNSHAM AREA ===
+                { id: 9, name: "Keynsham, Ellsbridge House", lat: 51.4195, lng: -2.5015 },
+                { id: 10, name: "Keynsham, The Centre", lat: 51.4178, lng: -2.4942 },
+                { id: 11, name: "Keynsham, Memorial Park", lat: 51.4165, lng: -2.4918 },
+                { id: 12, name: "Keynsham, Wellsway", lat: 51.4095, lng: -2.4820 },
+                { id: 13, name: "Keynsham, Saltford Road", lat: 51.4051, lng: -2.4740 },
+                
+                // === SALTFORD AREA ===
+                { id: 14, name: "Saltford, Glenavon Farm", lat: 51.4022, lng: -2.4660 },
+                { id: 15, name: "Saltford, The Brassmill", lat: 51.3998, lng: -2.4580 },
+                { id: 16, name: "Saltford, Tyning Road", lat: 51.3975, lng: -2.4495 },
+                { id: 17, name: "Saltford, The Crown Pub", lat: 51.3950, lng: -2.4410 },
+                { id: 18, name: "Saltford, Grange Road", lat: 51.3920, lng: -2.4310 },
+                
+                // === APPROACHING BATH ===
+                { id: 19, name: "Newton St Loe, Globe Inn", lat: 51.3835, lng: -2.4170 },
+                { id: 20, name: "Newbridge, Park & Ride Corner", lat: 51.3860, lng: -2.4010 },
+                { id: 21, name: "Newbridge, Post Office", lat: 51.3842, lng: -2.3920 },
+                { id: 22, name: "Bath, Chelsea Road", lat: 51.3821, lng: -2.3840 },
+                { id: 23, name: "Bath, Windsor Bridge", lat: 51.3808, lng: -2.3750 },
+                { id: 24, name: "Bath, Green Park Park", lat: 51.3792, lng: -2.3660 },
+                { id: 25, name: "Bath, Bus Station Terminal", lat: 51.3781, lng: -2.3589 }
+            ]
+        };
 
-                    // === SALTFORD STOPS (NORTH TO SOUTH) ===
-                    { id: 16, name: "Saltford, Bath Road North", lat: 51.4020, lng: -2.4645 },
-                    { id: 17, name: "Saltford, The Jolly Sailor", lat: 51.4012, lng: -2.4610 },
-                    { id: 18, name: "Saltford, Station Road", lat: 51.4000, lng: -2.4585 },
-                    { id: 19, name: "Saltford, Primary School", lat: 51.3990, lng: -2.4560 },
-                    { id: 20, name: "Saltford, The Crown Pub", lat: 51.3981, lng: -2.4510 },
-                    { id: 21, name: "Saltford, High Street", lat: 51.3972, lng: -2.4480 },
-                    { id: 22, name: "Saltford, St Mary's Church", lat: 51.3960, lng: -2.4455 },
-                    { id: 23, name: "Saltford, Norman Road", lat: 51.3948, lng: -2.4430 },
-                    { id: 24, name: "Saltford, Mead Lane", lat: 51.3935, lng: -2.4402 },
-                    { id: 25, name: "Saltford, Beechwood Drive", lat: 51.3922, lng: -2.4375 },
-                    { id: 26, name: "Saltford, A4 Bristol Bound", lat: 51.3910, lng: -2.4340 }
-                ]
+        const PROXIMITY_THRESHOLD_KM = 2.0; // Don't show "OUT OF AREA" unless way off-route
+        let bellRung = false;
+        let currentStopIndex = -1;
+        let cyclicStage = 0;
+
+        // Sound Engine (Web Audio API Chime)
+        function playBusChime(callback) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(554.37, ctx.currentTime);
+                gain1.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start();
+                osc1.stop(ctx.currentTime + 0.4);
+
+                setTimeout(() => {
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(880.00, ctx.currentTime);
+                    gain2.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start();
+                    osc2.stop(ctx.currentTime + 0.6);
+                    
+                    setTimeout(() => { if(callback) callback(); }, 500);
+                }, 200);
+            } catch (e) {
+                if(callback) callback();
             }
-            // Add more routes here later if you want
-        ];
+        }
 
-        // CONFIG - UNCHANGED FROM ORIGINAL
-        const PROXIMITY_THRESHOLD = 0.5; // km - alert when within 500m
-        const UPDATE_INTERVAL = 3000; // update every 3 seconds
+        // Voice Engine (TTS)
+        function announceNextStop(stopName) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); 
+            
+            const utterance = new SpeechSynthesisUtterance(`Next stop, ${stopName}`);
+            utterance.lang = 'en-GB';
+            utterance.rate = 0.92;
+            window.speechSynthesis.speak(utterance);
+        }
 
-        // ==============================================
-        // LOCATION & CALCULATION LOGIC - 100% ORIGINAL
-        // ==============================================
-        let userLat, userLng;
-        let lastBearing = null;
-        let watchId = null;
-
-        // Haversine formula: calculate distance between two lat/lng (in km)
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth radius in km
+        // Haversine Math
+        function calcKmDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2); 
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-            return R * c;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
         }
 
-        // Calculate direction user is moving (bearing)
-        function getBearing(lat1, lon1, lat2, lon2) {
-            const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-            const y = Math.sin(Δλ) * Math.cos(φ2);
-            const x = Math.cos(φ1)*Math.sin(φ2) -
-                      Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
-            const θ = Math.atan2(y, x);
-            return (θ * 180 / Math.PI + 360) % 360; // in degrees
-        }
-
-        // Determine direction text from bearing
-        function getDirectionText(bearing) {
-            if (bearing >= 337.5 || bearing < 22.5) return "Northbound";
-            if (bearing >= 22.5 && bearing < 67.5) return "North-East";
-            if (bearing >= 67.5 && bearing < 112.5) return "Eastbound";
-            if (bearing >= 112.5 && bearing < 157.5) return "South-East";
-            if (bearing >= 157.5 && bearing < 202.5) return "Southbound";
-            if (bearing >= 202.5 && bearing < 247.5) return "South-West";
-            if (bearing >= 247.5 && bearing < 292.5) return "Westbound";
-            if (bearing >= 292.5 && bearing < 337.5) return "North-West";
-            return "Unknown";
-        }
-
-        // Find nearest stop and route
-        function findNearestStop(userLat, userLng) {
-            let nearest = null;
-            let minDistance = Infinity;
-            let activeRoute = null;
-
-            ROUTES.forEach(route => {
-                route.stops.forEach(stop => {
-                    const dist = getDistance(userLat, userLng, stop.lat, stop.lng);
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        nearest = stop;
-                        activeRoute = route;
-                    }
-                });
-            });
-
-            return { nearest, minDistance, activeRoute };
-        }
-
-        // Predict next stop based on direction of travel
-        function predictNextStop(currentStop, bearing, route) {
-            if (!currentStop || !route) return "Calculating...";
+        // Display Multiplexer 
+        function matrixScreenRefresh() {
+            const marquee = document.getElementById('textMarquee');
+            const meta = document.getElementById('displayMeta');
             
-            const stopIds = route.stops.map(s => s.id);
-            const currentIndex = route.stops.findIndex(s => s.id === currentStop.id);
-            
-            // Moving generally along the route direction
-            if (bearing >= 90 && bearing <= 270) { // towards Saltford (south/east)
-                return currentIndex < route.stops.length - 1 
-                    ? route.stops[currentIndex + 1].name 
-                    : "End of Route";
-            } else { // towards Keynsham (north/west)
-                return currentIndex > 0 
-                    ? route.stops[currentIndex - 1].name 
-                    : "Start of Route";
-            }
-        }
-
-        // Update the LED display
-        function updateDisplay() {
-            if (!userLat || !userLng) return;
-
-            const { nearest, minDistance, activeRoute } = findNearestStop(userLat, userLng);
-            const directionText = lastBearing ? getDirectionText(lastBearing) : "Standing Still";
-            const nextStopPrediction = nearest ? predictNextStop(nearest, lastBearing, activeRoute) : "---";
-
-            // Update DOM
-            const mainDisplay = document.getElementById('mainDisplay');
-            const servicesDisplay = document.getElementById('servicesDisplay');
-            const nextStopEl = document.getElementById('nextStop');
-            const predictionEl = document.getElementById('prediction');
-            const statusEl = document.getElementById('status');
-
-            if (minDistance < PROXIMITY_THRESHOLD && activeRoute) {
-                // ✅ User is near the route
-                mainDisplay.innerHTML = `<span class="scroll-text">${nearest.name.toUpperCase()}</span>`;
-                servicesDisplay.textContent = `SERVICES: ${activeRoute.services.join(' ')}`;
-                nextStopEl.textContent = nearest.name;
-                predictionEl.textContent = `${directionText} • ~${Math.round(minDistance * 1000)}m`;
-                statusEl.textContent = `✅ Route: ${activeRoute.name}`;
-            } else {
-                // ❌ Away from route
-                mainDisplay.textContent = "OUT OF AREA";
-                servicesDisplay.textContent = "SERVICES: --";
-                nextStopEl.textContent = "---";
-                predictionEl.textContent = "---";
-                statusEl.textContent = `📍 ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
-            }
-        }
-
-        // ==============================================
-        // START LOCATION TRACKING - ORIGINAL
-        // ==============================================
-        function startTracking() {
-            if (!navigator.geolocation) {
-                alert("❌ Geolocation not supported on your device");
+            if (currentStopIndex === -1) {
+                meta.textContent = "SYSTEM";
+                marquee.textContent = "WAITING FOR POSITION SYNC...";
                 return;
             }
 
-            document.getElementById('status').textContent = "⏳ Waiting for location permission...";
+            const isLastStop = (currentStopIndex === MAIN_ROUTE.stops.length - 1);
+            const nextStop = isLastStop ? null : MAIN_ROUTE.stops[currentStopIndex + 1];
 
-            watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    const newLat = position.coords.latitude;
-                    const newLng = position.coords.longitude;
+            if (cyclicStage === 0) {
+                meta.textContent = "BOUND FOR";
+                marquee.textContent = MAIN_ROUTE.finalDestination;
+            } else if (cyclicStage === 1) {
+                meta.textContent = "VIA ROADWAYS";
+                marquee.textContent = "KEYNSHAM * SALTFORD * NEWBRIDGE";
+            } else {
+                if (nextStop) {
+                    meta.textContent = "NEXT ARRIVAL";
+                    marquee.textContent = nextStop.name.toUpperCase();
+                } else {
+                    meta.textContent = "TERMINAL ARRIVAL";
+                    marquee.textContent = "ALL PASSENGERS MUST DISEMBARK";
+                }
+            }
+        }
 
-                    // Calculate bearing if we have previous position
-                    if (userLat && userLng) {
-                        lastBearing = getBearing(userLat, userLng, newLat, newLng);
-                    }
+        // Live Coordinate Processing Core
+        function processCoordinatePosition(lat, lng) {
+            let foundIndex = 0;
+            let minimumDistance = Infinity;
 
-                    userLat = newLat;
-                    userLng = newLng;
-                    updateDisplay();
+            MAIN_ROUTE.stops.forEach((stop, i) => {
+                const dist = calcKmDistance(lat, lng, stop.lat, stop.lng);
+                if (dist < minimumDistance) {
+                    minimumDistance = dist;
+                    foundIndex = i;
+                }
+            });
+
+            if (minimumDistance > PROXIMITY_THRESHOLD_KM) {
+                document.getElementById('routeDisplay').textContent = "---";
+                document.getElementById('displayMeta').textContent = "STATUS";
+                document.getElementById('textMarquee').textContent = "OUT OF ROUTE AREA";
+                return;
+            }
+
+            document.getElementById('routeDisplay').textContent = MAIN_ROUTE.service;
+
+            // Trigger progression step when shifting closest stop nodes
+            if (foundIndex !== currentStopIndex) {
+                currentStopIndex = foundIndex;
+                bellRung = false; 
+                document.getElementById('bellBanner').classList.add('hidden');
+                
+                if (currentStopIndex < MAIN_ROUTE.stops.length - 1) {
+                    const cleanName = MAIN_ROUTE.stops[currentStopIndex + 1].name.split("(")[0];
+                    playBusChime(() => {
+                        announceNextStop(cleanName);
+                    });
+                }
+                matrixScreenRefresh();
+            }
+
+            const nextNode = (currentStopIndex < MAIN_ROUTE.stops.length - 1) ? MAIN_ROUTE.stops[currentStopIndex + 1] : MAIN_ROUTE.stops[currentStopIndex];
+            document.getElementById('teleNext').textContent = nextNode.name;
+            document.getElementById('teleDist').textContent = minimumDistance < 1 ? `${Math.round(minimumDistance * 1000)}m` : `${minimumDistance.toFixed(2)} km`;
+        }
+
+        // Passenger Bell Trigger
+        document.getElementById('bellBtn').addEventListener('click', () => {
+            if (bellRung || currentStopIndex === -1) return; 
+            bellRung = true;
+            
+            document.getElementById('bellBanner').classList.remove('hidden');
+            
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1150, ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e){}
+
+            setTimeout(() => {
+                document.getElementById('bellBanner').classList.add('hidden');
+            }, 3500);
+        });
+
+        // Initialize GPS Hardware Hook
+        function initLiveGps() {
+            if (!navigator.geolocation) {
+                document.getElementById('teleStatusText').textContent = "Hardware Deficient";
+                return;
+            }
+            
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    const dot = document.getElementById('teleStatusDot');
+                    const txt = document.getElementById('teleStatusText');
+                    dot.className = "h-2 w-2 rounded-full bg-emerald-500 animate-ping";
+                    txt.textContent = "GPS Active & Connected";
+                    
+                    processCoordinatePosition(pos.coords.latitude, pos.coords.longitude);
                 },
-                (error) => {
-                    let msg = "Unknown error";
-                    if (error.code === 1) msg = "❌ Permission denied";
-                    if (error.code === 2) msg = "❌ Location unavailable";
-                    if (error.code === 3) msg = "❌ Timeout";
-                    document.getElementById('status').textContent = msg;
+                (err) => {
+                    const dot = document.getElementById('teleStatusDot');
+                    const txt = document.getElementById('teleStatusText');
+                    dot.className = "h-2 w-2 rounded-full bg-red-500 animate-none";
+                    txt.textContent = "GPS Signal Denied";
                 },
-                { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+                { enableHighAccuracy: true, maximumAge: 3000, timeout: 8000 }
             );
         }
 
-        // Start everything
-        window.addEventListener('load', startTracking);
+        window.addEventListener('load', () => {
+            initLiveGps();
+            
+            // Loop screen dynamic text stages every 5 seconds
+            setInterval(() => {
+                cyclicStage = (cyclicStage + 1) % 3;
+                matrixScreenRefresh();
+            }, 5000);
+            
+            // Clock loop
+            setInterval(() => {
+                document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB');
+            }, 1000);
+        });
     </script>
 </body>
 </html>
