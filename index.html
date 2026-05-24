@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bus LED Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        led: {
+                            bg: '#0a0a0a',
+                            text: '#f9e000', // classic bus LED yellow
+                            dim: '#b8a500'
+                        }
+                    },
+                    fontFamily: {
+                        matrix: ['DotGothic16', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .scroll-text {
+                animation: scroll 12s linear infinite;
+            }
+            @keyframes scroll {
+                0% { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
+            }
+            .led-glow {
+                text-shadow: 0 0 8px currentColor;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4 font-matrix">
+    <!-- LED MATRIX BOARD -->
+    <div class="w-full max-w-[420px] bg-led-bg text-led-text rounded-2xl p-6 shadow-[0_0_30px_rgba(249,224,0,0.2)] border-2 border-yellow-600/30">
+        
+        <!-- Header -->
+        <div class="text-center mb-4 border-b border-yellow-800/40 pb-2">
+            <h1 class="text-[10px] sm:text-xs uppercase tracking-widest text-led-dim">Live Bus Board</h1>
+        </div>
+
+        <!-- MAIN DISPLAY -->
+        <div id="mainDisplay" class="text-[clamp(1.8rem,8vw,3.2rem)] leading-tight font-bold led-glow overflow-hidden whitespace-nowrap h-[4rem] flex items-center mb-4">
+            <span id="displayText">WAITING FOR LOCATION...</span>
+        </div>
+
+        <!-- SERVICE NUMBERS -->
+        <div id="servicesDisplay" class="text-[clamp(1.4rem,6vw,2.4rem)] font-semibold led-glow mb-3">
+            SERVICES: --
+        </div>
+
+        <!-- NEXT STOP + PREDICTION -->
+        <div class="grid grid-cols-2 gap-3 text-led-dim">
+            <div>
+                <div class="text-[10px] uppercase">Next Stop</div>
+                <div id="nextStop" class="text-led-text text-lg">---</div>
+            </div>
+            <div class="text-right">
+                <div class="text-[10px] uppercase">ETA / Direction</div>
+                <div id="prediction" class="text-led-text text-lg">---</div>
+            </div>
+        </div>
+
+        <!-- STATUS BAR -->
+        <div id="status" class="mt-4 text-[9px] text-led-dim uppercase tracking-wider">
+            📍 Location: Waiting for permission...
+        </div>
+    </div>
+
+    <script>
+        // ==============================================
+        // ✏️ ROUTE & STOP DATA - EXPANDED KE YNSHAM → SALTFORD
+        // ==============================================
+        const ROUTES = [
+            {
+                name: "Keynsham → Saltford",
+                services: ["47", "63", "92", "183"],
+                stops: [
+                    // === KEYNSHAM STOPS (NORTH TO SOUTH) ===
+                    { id: 1, name: "Keynsham, The Centre", lat: 51.4178, lng: -2.4942 },
+                    { id: 2, name: "Keynsham, High Street", lat: 51.4172, lng: -2.4930 },
+                    { id: 3, name: "Keynsham, Memorial Park", lat: 51.4165, lng: -2.4918 },
+                    { id: 4, name: "Keynsham, Ashton Way", lat: 51.4158, lng: -2.4905 },
+                    { id: 5, name: "Keynsham, St John's School", lat: 51.4150, lng: -2.4892 },
+                    { id: 6, name: "Keynsham, Hospital Main Entrance", lat: 51.4135, lng: -2.4871 },
+                    { id: 7, name: "Keynsham, Hospital South Gate", lat: 51.4122, lng: -2.4858 },
+                    { id: 8, name: "Keynsham, Queens Road", lat: 51.4110, lng: -2.4842 },
+                    { id: 9, name: "Keynsham, Durley Park", lat: 51.4095, lng: -2.4825 },
+                    { id: 10, name: "Keynsham, Manor Road", lat: 51.4082, lng: -2.4808 },
+                    { id: 11, name: "Keynsham, Bath Road Roundabout", lat: 51.4070, lng: -2.4790 },
+                    { id: 12, name: "Keynsham, Somerdale Gate", lat: 51.4055, lng: -2.4765 },
+                    { id: 13, name: "Keynsham, Somerdale Square", lat: 51.4042, lng: -2.4740 },
+                    { id: 14, name: "Keynsham, River Bridge", lat: 51.4032, lng: -2.4705 },
+                    { id: 15, name: "Keynsham, Avon Riverside", lat: 51.4025, lng: -2.4678 },
+
+                    // === SALTFORD STOPS (NORTH TO SOUTH) ===
+                    { id: 16, name: "Saltford, Bath Road North", lat: 51.4020, lng: -2.4645 },
+                    { id: 17, name: "Saltford, The Jolly Sailor", lat: 51.4012, lng: -2.4610 },
+                    { id: 18, name: "Saltford, Station Road", lat: 51.4000, lng: -2.4585 },
+                    { id: 19, name: "Saltford, Primary School", lat: 51.3990, lng: -2.4560 },
+                    { id: 20, name: "Saltford, The Crown Pub", lat: 51.3981, lng: -2.4510 },
+                    { id: 21, name: "Saltford, High Street", lat: 51.3972, lng: -2.4480 },
+                    { id: 22, name: "Saltford, St Mary's Church", lat: 51.3960, lng: -2.4455 },
+                    { id: 23, name: "Saltford, Norman Road", lat: 51.3948, lng: -2.4430 },
+                    { id: 24, name: "Saltford, Mead Lane", lat: 51.3935, lng: -2.4402 },
+                    { id: 25, name: "Saltford, Beechwood Drive", lat: 51.3922, lng: -2.4375 },
+                    { id: 26, name: "Saltford, A4 Bristol Bound", lat: 51.3910, lng: -2.4340 }
+                ]
+            }
+            // Add more routes here later if you want
+        ];
+
+        // CONFIG - UNCHANGED FROM ORIGINAL
+        const PROXIMITY_THRESHOLD = 0.5; // km - alert when within 500m
+        const UPDATE_INTERVAL = 3000; // update every 3 seconds
+
+        // ==============================================
+        // LOCATION & CALCULATION LOGIC - 100% ORIGINAL
+        // ==============================================
+        let userLat, userLng;
+        let lastBearing = null;
+        let watchId = null;
+
+        // Haversine formula: calculate distance between two lat/lng (in km)
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2); 
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            return R * c;
+        }
+
+        // Calculate direction user is moving (bearing)
+        function getBearing(lat1, lon1, lat2, lon2) {
+            const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            const y = Math.sin(Δλ) * Math.cos(φ2);
+            const x = Math.cos(φ1)*Math.sin(φ2) -
+                      Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+            const θ = Math.atan2(y, x);
+            return (θ * 180 / Math.PI + 360) % 360; // in degrees
+        }
+
+        // Determine direction text from bearing
+        function getDirectionText(bearing) {
+            if (bearing >= 337.5 || bearing < 22.5) return "Northbound";
+            if (bearing >= 22.5 && bearing < 67.5) return "North-East";
+            if (bearing >= 67.5 && bearing < 112.5) return "Eastbound";
+            if (bearing >= 112.5 && bearing < 157.5) return "South-East";
+            if (bearing >= 157.5 && bearing < 202.5) return "Southbound";
+            if (bearing >= 202.5 && bearing < 247.5) return "South-West";
+            if (bearing >= 247.5 && bearing < 292.5) return "Westbound";
+            if (bearing >= 292.5 && bearing < 337.5) return "North-West";
+            return "Unknown";
+        }
+
+        // Find nearest stop and route
+        function findNearestStop(userLat, userLng) {
+            let nearest = null;
+            let minDistance = Infinity;
+            let activeRoute = null;
+
+            ROUTES.forEach(route => {
+                route.stops.forEach(stop => {
+                    const dist = getDistance(userLat, userLng, stop.lat, stop.lng);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        nearest = stop;
+                        activeRoute = route;
+                    }
+                });
+            });
+
+            return { nearest, minDistance, activeRoute };
+        }
+
+        // Predict next stop based on direction of travel
+        function predictNextStop(currentStop, bearing, route) {
+            if (!currentStop || !route) return "Calculating...";
+            
+            const stopIds = route.stops.map(s => s.id);
+            const currentIndex = route.stops.findIndex(s => s.id === currentStop.id);
+            
+            // Moving generally along the route direction
+            if (bearing >= 90 && bearing <= 270) { // towards Saltford (south/east)
+                return currentIndex < route.stops.length - 1 
+                    ? route.stops[currentIndex + 1].name 
+                    : "End of Route";
+            } else { // towards Keynsham (north/west)
+                return currentIndex > 0 
+                    ? route.stops[currentIndex - 1].name 
+                    : "Start of Route";
+            }
+        }
+
+        // Update the LED display
+        function updateDisplay() {
+            if (!userLat || !userLng) return;
+
+            const { nearest, minDistance, activeRoute } = findNearestStop(userLat, userLng);
+            const directionText = lastBearing ? getDirectionText(lastBearing) : "Standing Still";
+            const nextStopPrediction = nearest ? predictNextStop(nearest, lastBearing, activeRoute) : "---";
+
+            // Update DOM
+            const mainDisplay = document.getElementById('mainDisplay');
+            const servicesDisplay = document.getElementById('servicesDisplay');
+            const nextStopEl = document.getElementById('nextStop');
+            const predictionEl = document.getElementById('prediction');
+            const statusEl = document.getElementById('status');
+
+            if (minDistance < PROXIMITY_THRESHOLD && activeRoute) {
+                // ✅ User is near the route
+                mainDisplay.innerHTML = `<span class="scroll-text">${nearest.name.toUpperCase()}</span>`;
+                servicesDisplay.textContent = `SERVICES: ${activeRoute.services.join(' ')}`;
+                nextStopEl.textContent = nearest.name;
+                predictionEl.textContent = `${directionText} • ~${Math.round(minDistance * 1000)}m`;
+                statusEl.textContent = `✅ Route: ${activeRoute.name}`;
+            } else {
+                // ❌ Away from route
+                mainDisplay.textContent = "OUT OF AREA";
+                servicesDisplay.textContent = "SERVICES: --";
+                nextStopEl.textContent = "---";
+                predictionEl.textContent = "---";
+                statusEl.textContent = `📍 ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+            }
+        }
+
+        // ==============================================
+        // START LOCATION TRACKING - ORIGINAL
+        // ==============================================
+        function startTracking() {
+            if (!navigator.geolocation) {
+                alert("❌ Geolocation not supported on your device");
+                return;
+            }
+
+            document.getElementById('status').textContent = "⏳ Waiting for location permission...";
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const newLat = position.coords.latitude;
+                    const newLng = position.coords.longitude;
+
+                    // Calculate bearing if we have previous position
+                    if (userLat && userLng) {
+                        lastBearing = getBearing(userLat, userLng, newLat, newLng);
+                    }
+
+                    userLat = newLat;
+                    userLng = newLng;
+                    updateDisplay();
+                },
+                (error) => {
+                    let msg = "Unknown error";
+                    if (error.code === 1) msg = "❌ Permission denied";
+                    if (error.code === 2) msg = "❌ Location unavailable";
+                    if (error.code === 3) msg = "❌ Timeout";
+                    document.getElementById('status').textContent = msg;
+                },
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+            );
+        }
+
+        // Start everything
+        window.addEventListener('load', startTracking);
+    </script>
+</body>
+</html>
